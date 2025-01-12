@@ -36,6 +36,15 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "311a8353-2490-441d-b721-c143b6ca0d44"
+      }
+    },
+    "owner": "ground-mobile"
   }
 }
