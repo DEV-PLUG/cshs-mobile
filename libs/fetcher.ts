@@ -13,14 +13,12 @@ export async function loginFetcher(url:string) {
   }
   else {
     return fetch(BASE_URL + url, {
-      method: "POST",
+      method: "GET",
       headers: {
         "Content-Type": "application/json",
+        "Cookie": `MobileAuthorization=${accessToken}`
         // "Authorization": accessToken,
       },
-      body: JSON.stringify({
-        token: accessToken + ''
-      })
     }).then((response) => response.json())
   }
 }

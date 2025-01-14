@@ -32,6 +32,7 @@ const reduxStore = store;
 // import { setUserId, setUserProperties } from "firebase/analytics";
 
 import { setCustomText } from "react-native-global-props";
+import InAppNotification from "@/components/notification";
 
 const customTextProps = {
   style: {
@@ -53,28 +54,24 @@ function AppComponent() {
     if(isLogined !== null) setIsLogined(getIsLogined);
   }, [getIsLogined]);
   useEffect(() => {
+    console.log(isLogined, isReady)
     if(isLogined !== null && isReady === true) setTimeout(() => {
       SplashScreen.hideAsync();
     }, 100);
   }, [isLogined, isReady]);
+
   const isLoading = useSelector((state:RootState) => state.app.isLoading);
   const dispatch = useDispatch();
 
-  useEffect(() => {
-    if(isLogined !== null && isReady === true) setTimeout(() => {
-      SplashScreen.hideAsync();
-    }, 100);
-  }, [isLogined, isReady]);
-
-  const { data, error } = useSWR("/user_information", loginFetcher);
+  const { data, error } = useSWR("/api/user", loginFetcher);
   useEffect(() => {
     console.log(data, error)
     const roadUserInfo = async () => {
       // 로그인 디버깅용 코드
-      // deleteItem("accessToken");
+      deleteItem("accessToken");
       // dispatch(setLoading(true));
 
-      if(data.success !== true || data.data.length === 0) {
+      if(data.success !== true) {
         await deleteItem("accessToken");
 
         setIsLogined(false);
@@ -108,9 +105,10 @@ function AppComponent() {
     <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
       { isReady === true && <View style={structure.container}>
         { isLogined !== null && <View style={structure.container}>
-          { isLogined === false ? <Start/> : <View><Text>test</Text></View> }
+          { isLogined === false ? <Start/> : <View style={{ width: 100, height: 100, backgroundColor: 'red' }}><Text>test</Text></View> }
         </View> }
       </View> }
+      <InAppNotification/>
       <StatusBar style='dark' />
       { isLoading === true && <Loading/> }
     </View>

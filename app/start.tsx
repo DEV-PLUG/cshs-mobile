@@ -1,4 +1,4 @@
-import { View, SafeAreaView, KeyboardAvoidingView, Text, Image, Keyboard, StyleSheet, ScrollView, Pressable, Animated, Dimensions, Platform, Easing } from "react-native";
+import { View, SafeAreaView, KeyboardAvoidingView, Text, Image, Keyboard, StyleSheet, ScrollView, Pressable, Animated, Dimensions, Platform, Easing, TextInput } from "react-native";
 import { NavigationContainer, NavigationIndependentTree } from '@react-navigation/native';
 import { createStackNavigator, StackScreenProps } from '@react-navigation/stack';
 
@@ -6,16 +6,18 @@ import structure from "../styles/structure";
 import Header from "@/components/header";
 import { navigationOptions } from "@/libs/navigation";
 import { Button, LightButton, TextButton } from "@/components/btn";
-import Input, { CustomInput } from "@/components/input";
 import { useEffect, useRef, useState } from "react";
 import detectKeyboard from "@/libs/detectKeyboard";
 import { BASE_URL } from "@/libs/swr";
 import { useDispatch } from "react-redux";
-import { login, setLoading } from "@/libs/reduces/app";
+import { login, notification, setLoading } from "@/libs/reduces/app";
 import { saveItem } from "@/libs/SecureStore";
 import ButtonGradient from "@/components/btnGradient";
 import { colors } from "@/styles/colors";
 import * as WebBrowser from 'expo-web-browser';
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 
 const deviceWidth = Dimensions.get('window').width;
 
@@ -24,7 +26,9 @@ const Stack = createStackNavigator<StartStackParamList>();
 type StartStackParamList = {
   Start1: undefined;
   Signup: undefined;
-  Login: undefined;
+  Notification: undefined;
+  Verify: undefined;
+  Success: undefined;
 };
 
 export default function Start() {
@@ -34,7 +38,9 @@ export default function Start() {
         <Stack.Navigator initialRouteName="Start1">
           <Stack.Screen name="Start1" component={Start1} options={navigationOptions} />
           <Stack.Screen name="Signup" component={Signup} options={navigationOptions} />
-          <Stack.Screen name="Login" component={Login} options={navigationOptions} />
+          <Stack.Screen name="Notification" component={Notification} options={navigationOptions} />
+          <Stack.Screen name="Verify" component={Verify} options={navigationOptions} />
+          <Stack.Screen name="Success" component={Success} options={navigationOptions} />
         </Stack.Navigator>
       </NavigationContainer>
     </NavigationIndependentTree>
@@ -122,202 +128,214 @@ export function Signup({ navigation }:StackScreenProps<StartStackParamList, "Sig
       </View>
       <View style={structure.btnBox}>
         <ButtonGradient/>
-        <Button btnText='다음' fn={() => WebBrowser.openBrowserAsync("http://192.168.25.15:3000/mobile/login")} />
+        <Button btnText='다음' fn={() => {
+          navigation.navigate("Verify");
+        }} />
       </View>
     </SafeAreaView>
   )
 }
 
-export function Signup2({ navigation }:StackScreenProps<StartStackParamList, "Signup">) {
-
-  const input1 = useRef<HTMLDivElement>();
-  const input2 = useRef<HTMLDivElement>();
-  const input3 = useRef<HTMLDivElement>();
-  const input4 = useRef<HTMLDivElement>();
-  const input5 = useRef<HTMLDivElement>();
-  const input6 = useRef<HTMLDivElement>();
-
-  const [inputProcess, setInputProcess] = useState(0);
-  const [isKeyboard, setIsKeyboard] = useState(false);
-  detectKeyboard({setIsKeyboard});
+export function Verify({ navigation }:StackScreenProps<StartStackParamList, "Verify">) {
+  const inputRef = useRef<TextInput | null>(null);
 
   useEffect(() => {
-    input1.current?.focus();
-  }, [])
+    // WebBrowser.openBrowserAsync(BASE_URL + "/mobile/login");
 
-  useEffect(() => {
-    setTimeout(function() {
-      if(inputProcess === 1) input2.current?.focus();
-      if(inputProcess === 2) input3.current?.focus();
-      if(inputProcess === 3) input4.current?.focus();
-      if(inputProcess === 4) input5.current?.focus();
-      if(inputProcess === 5) input6.current?.focus();
-    }, 200);
-  }, [inputProcess])
-
-  const [id, setId] = useState('');
-  const [pw, setPW] = useState('');
-  const [email, setEmail] = useState('');
-  const [sex, setSex] = useState('');
-  const [name, setName] = useState('');
-  const [birthday, setBirthday] = useState('');
-  const [loading, setLoadingState] = useState(false);
+    // 실물 기기 디버깅용
+    dispatch(notification({type: "success", text: "로그인이 완료되었습니다"}));
+    navigation.navigate("Notification");
+  }, [inputRef]);
 
   const dispatch = useDispatch();
-  async function signup() {
-    if (loading) return;
-    setLoadingState(true);
-    dispatch(setLoading(true));
 
-    fetch(BASE_URL + "/register", {
+  async function requestToken() {
+    await fetch(BASE_URL + "/api/user/mobile/verify", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        email: email,
-        user_id: id,
-        password: pw,
-        sex: +sex,
-        birthday: new Date(birthday),
-        name: name
+        code
       })
     })
     .then((response) => response.json())
-    .then(async (response) => {
-      setLoadingState(false);
-      dispatch(setLoading(false));
+    .then((response) => {
+      console.log(response);
       if(response.success === true) {
-        await saveItem("accessToken", response.token + '');
-        dispatch(login());
+        saveItem("accessToken", response.token + '');
+        dispatch(notification({type: "success", text: "로그인이 완료되었습니다"}));
+        navigation.navigate("Notification");
       } else {
+        dispatch(notification({type: "error", text: "코드가 일치하지 않거나 만료되었어요"}));
+        setCode('');
       }
-    })
+    });
   }
 
+  const [code, setCode] = useState('');
+  useEffect(() => {
+    if(code.length >= 6) {
+      inputRef.current?.blur();
+      requestToken();
+    }
+  }, [code]);
+
   return (
-      <SafeAreaView style={structure.safeViewContainer}>
-        <View style={structure.container}>
-          <View style={structure.headerBox}>
-            <Header arrow={true} navigation={navigation} />
-          </View>
-          <ScrollView style={structure.contentContainer}>
-            <View style={structure.contentContainer}>
-              <View style={structure.contentBox}>
-                <View style={{display: 'flex', width: 400, flexDirection: 'row', marginBottom: 30}}>
-                  <TextButton fn={() => navigation.navigate('Login')} btnText="이미 계정이 있으신가요?" />
-                </View>
-                {/* <Text style={structure.inputLabel}>이메일</Text> */}
-                <Input placeholder={'이메일'} Ref={input1} onEndEditing={() => { if(inputProcess < 1) setInputProcess(1) }} onChangeText={(value:any) => setEmail(value)} />
-                { inputProcess >= 1 && <View style={{marginTop:30}}>
-                  {/* <Text style={structure.inputLabel}>아이디</Text> */}
-                  <Input placeholder={'아이디'} Ref={input2} onEndEditing={() => { if(inputProcess < 2) setInputProcess(2) }} onChangeText={(value:any) => setId(value)} />
-                </View> }
-                { inputProcess >= 2 && <View style={{marginTop:30}}>
-                  {/* <Text style={structure.inputLabel}>비밀번호</Text> */}
-                  <Input placeholder={'비밀번호'} secureText Ref={input3} onEndEditing={() => { if(inputProcess < 3) setInputProcess(3) }} onChangeText={(value:any) => setPW(value)} />
-                </View> }
-                { inputProcess >= 3 && <View style={{marginTop:30}}>
-                  {/* <Text style={structure.inputLabel}>성별</Text> */}
-                  <Input placeholder={'성별'} Ref={input4} onEndEditing={() => { if(inputProcess < 4) setInputProcess(4) }} onChangeText={(value:any) => setSex(value)} />
-                </View> }
-                { inputProcess >= 4 && <View style={{marginTop:30}}>
-                  {/* <Text style={structure.inputLabel}>이름</Text> */}
-                  <Input placeholder={'이름'} Ref={input5} onEndEditing={() => { if(inputProcess < 5) setInputProcess(5) }} onChangeText={(value:any) => setName(value)} />
-                </View> }
-                { inputProcess >= 5 && <View style={{marginTop:30}}>
-                  {/* <Text style={structure.inputLabel}>생일</Text> */}
-                  <Input placeholder={'생일'} Ref={input6} onEndEditing={() => { if(inputProcess < 6) setInputProcess(6) }} onChangeText={(value:any) => setBirthday(value)} />
-                </View> }
+    <SafeAreaView style={structure.safeViewContainer}>
+      <View style={structure.container}>
+        <View style={structure.headerBox}>
+          <Header navigation={navigation} />
+        </View>
+        <View style={structure.contentContainer}>
+          <View style={structure.imageContentBox}>
+            <View style={structure.titleBox}>
+              <Text style={structure.title}>기억한 코드를{'\n'}입력하세요</Text>
+            </View>
+            <View style={structure.descriptionBox}>
+              <Text style={structure.description}>코드를 타인에게 공유하지 마세요.{'\n'}5분 내로 코드를 입력해야 합니다.</Text>
+              <View style={{ marginTop: 40 }}>
+                <Pressable onPress={() => inputRef.current?.focus()} style={{ flexDirection: 'row', justifyContent: 'center' }}>
+                  <View style={{ marginRight: '1%', width: '16%', height: 70, borderRadius: 15, backgroundColor: colors.light, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 30, fontWeight: 'bold' }}>{code[0]}</Text>
+                  </View>
+                  <View style={{ marginRight: '1%', width: '16%', height: 70, borderRadius: 15, backgroundColor: colors.light, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 30, fontWeight: 'bold' }}>{code[1]}</Text>
+                  </View>
+                  <View style={{ marginRight: '1%', width: '16%', height: 70, borderRadius: 15, backgroundColor: colors.light, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 30, fontWeight: 'bold' }}>{code[2]}</Text>
+                  </View>
+                  <View style={{ marginRight: '1%', width: '16%', height: 70, borderRadius: 15, backgroundColor: colors.light, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 30, fontWeight: 'bold' }}>{code[3]}</Text>
+                  </View>
+                  <View style={{ marginRight: '1%', width: '16%', height: 70, borderRadius: 15, backgroundColor: colors.light, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 30, fontWeight: 'bold' }}>{code[4]}</Text>
+                  </View>
+                  <View style={{ marginRight: '1%', width: '16%', height: 70, borderRadius: 15, backgroundColor: colors.light, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 30, fontWeight: 'bold' }}>{code[5]}</Text>
+                  </View>
+                </Pressable>
               </View>
             </View>
-          </ScrollView>
+            <View style={{ marginTop: 10, flexDirection: 'row' }}>
+              <TextButton btnText='코드를 잊으셨나요?' fn={() => {
+                WebBrowser.openBrowserAsync(BASE_URL + "/mobile/login");
+              }} />
+            </View>
+            <View style={{ opacity: 0, width: 0, height: 0, overflow: 'hidden' }}>
+              <TextInput value={code} onChangeText={(text:string) => {
+                if(code.length < 6) setCode(text.replaceAll(/[^a-zA-Z0-9]/gi, '').toUpperCase());
+              }} ref={inputRef} />
+            </View>
+          </View>
         </View>
-        <View style={structure.btnBox}>
-          <ButtonGradient/>
-          <Button btnText='다음' keyboard={isKeyboard} fn={ inputProcess >= 6 ? isKeyboard === true ? () => Keyboard.dismiss() : () => signup() : () => Keyboard.dismiss() } />
-        </View>
-      </SafeAreaView>
+      </View>
+      {/* <View style={structure.btnBox}>
+        <ButtonGradient/>
+        <Button btnText='다음' fn={() => {
+          inputRef.current?.focus();
+        }} />
+      </View> */}
+    </SafeAreaView>
   )
 }
 
-export function Login({ navigation }:StackScreenProps<StartStackParamList, "Login">) {
-
-  const input1 = useRef<HTMLDivElement>();
-  const input2 = useRef<HTMLDivElement>();
-
-  const [inputProcess, setInputProcess] = useState(0);
-  const [isKeyboard, setIsKeyboard] = useState(false);
-  detectKeyboard({setIsKeyboard});
-
-  useEffect(() => {
-    input1.current?.focus();
-  }, [])
-
-  useEffect(() => {
-    setTimeout(function() {
-      if(inputProcess === 1) input2.current?.focus();
-    }, 200);
-  }, [inputProcess])
-
-  const [id, setId] = useState('');
-  const [pw, setPW] = useState('');
-  const [loading, setLoadingState] = useState(false);
-
+export function Notification({ navigation }:StackScreenProps<StartStackParamList, "Notification">) {
   const dispatch = useDispatch();
-  async function signin() {
-    if (loading) return;
-    setLoadingState(true);
-    dispatch(setLoading(true));
-
-    fetch(BASE_URL + "/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        user_id: id,
-        password: pw
-      })
-    })
-    .then((response) => response.json())
-    .then(async (response) => {
-      setLoadingState(false);
-      dispatch(setLoading(false));
-      if(response.success === true) {
-        await saveItem("accessToken", response.token + '');
-        dispatch(login());
-      } else {
+  async function setNotificationToken() {
+    if (Device.isDevice) {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
       }
-    })
+      if (finalStatus !== 'granted') {
+        dispatch(notification({type: "warning", text: "알림 권한을 허용하면 학교 소식을 가장 빠르게 접할 수 있습니다"}));
+        navigation.navigate("Success");
+      }
+      const projectId =
+        Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
+      if (!projectId) {
+        dispatch(notification({type: "error", text: "프로젝트 ID를 찾을 수 없습니다(오류)"}));
+      }
+      try {
+        const pushTokenString = (
+          await Notifications.getExpoPushTokenAsync({
+            projectId,
+          })
+        ).data;
+
+
+        console.log(pushTokenString);
+
+
+        navigation.navigate("Success");
+      } catch (e: unknown) {
+        dispatch(notification({type: "error", text: `${e}`}));
+      }
+    } else {
+      dispatch(notification({type: "error", text: "실물 기기에서 테스트해주세요"}));
+    }
   }
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={structure.container}>
-      <SafeAreaView style={structure.safeViewContainer}>
-        <View style={structure.container}>
-          <View style={structure.headerBox}>
-            <Header arrow={true} navigation={navigation} />
-          </View>
-          <ScrollView style={structure.contentContainer}>
-            <View style={structure.contentContainer}>
-              <View style={structure.contentBox}>
-                <View style={{marginTop:0}}>
-                  {/* <Text style={structure.inputLabel}>아이디</Text> */}
-                  <Input placeholder={'아이디'} Ref={input1} onEndEditing={() => { if(inputProcess < 1) setInputProcess(1) }} onChangeText={(value:any) => setId(value)} />
-                </View> 
-                { inputProcess >= 1 && <View style={{marginTop:30}}>
-                  {/* <Text style={structure.inputLabel}>비밀번호</Text> */}
-                  <Input placeholder={'비밀번호'} secureText Ref={input2} onEndEditing={() => { if(inputProcess < 2) setInputProcess(2) }} onChangeText={(value:any) => setPW(value)} />
-                </View> }
+    <SafeAreaView style={structure.safeViewContainer}>
+      <View style={structure.container}>
+        <View style={structure.headerBox}>
+          <Header arrow={true} navigation={navigation} />
+        </View>
+        <View style={structure.contentContainer}>
+          <View style={structure.imageContentBox}>
+            <View style={structure.titleBox}>
+              <Text style={structure.title}>알림을{'\n'}허용해주세요</Text>
+            </View>
+            <View style={structure.descriptionBox}>
+              <Text style={structure.description}>활승 신청 및 승인 상태 업데이트,{'\n'}오늘 해야 할 일 등을 알림으로 보내드릴게요.</Text>
+              <View style={{ width: '100%', backgroundColor: colors.light, borderRadius: 15, padding: 17, marginTop: 30 }}>
+                <Text style={{ fontWeight: 'bold', fontSize: 15, textAlign: 'center' }}>선생님께는 저녁 6시 이후 알림이 전송되지 않습니다</Text>
               </View>
             </View>
-          </ScrollView>
+            <View style={structure.imageBox}>
+              {/* <Image style={structure.image} source={require("../assets/images/icon.png")}/> */}
+            </View>
+          </View>
         </View>
-        <View style={structure.btnBox}>
-          <Button btnText='다음' fn={ inputProcess >= 2 ? isKeyboard === true ? () => Keyboard.dismiss() : () => signin() : () => Keyboard.dismiss() } />
+      </View>
+      <View style={structure.btnBox}>
+        <ButtonGradient/>
+        <Button btnText='다음' fn={() => setNotificationToken()} />
+      </View>
+    </SafeAreaView>
+  )
+}
+
+export function Success({ navigation }:StackScreenProps<StartStackParamList, "Success">) {
+  const dispatch = useDispatch();
+  return (
+    <SafeAreaView style={structure.safeViewContainer}>
+      <View style={structure.container}>
+        <View style={structure.headerBox}>
+          <Header arrow={false} navigation={navigation} />
         </View>
-      </SafeAreaView>
-    </KeyboardAvoidingView>
+        <View style={structure.contentContainer}>
+          <View style={structure.imageContentBox}>
+            <View style={structure.titleBox}>
+              <Text style={structure.title}>모든 준비가{'\n'}완료되었어요!</Text>
+            </View>
+            <View style={structure.descriptionBox}>
+              <Text style={structure.description}>'완료하기'를 눌르고{'\n'}모바일에서 Ground를 이용하세요.</Text>
+            </View>
+            <View style={structure.imageBox}>
+              {/* <Image style={structure.image} source={require("../assets/images/icon.png")}/> */}
+            </View>
+          </View>
+        </View>
+      </View>
+      <View style={structure.btnBox}>
+        <ButtonGradient/>
+        <Button btnText='완료하기' fn={() => dispatch(login())} />
+      </View>
+    </SafeAreaView>
   )
 }
