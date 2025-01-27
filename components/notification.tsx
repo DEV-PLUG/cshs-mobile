@@ -67,9 +67,9 @@ export default function InAppNotification() {
 
 const notificationStyles = StyleSheet.create({
   container: {
-    width: deviceWidth - 50,
-    left: 25,
-    right: 25,
+    width: deviceWidth > 1000 ? 500 : deviceWidth - 50,
+    left: deviceWidth > 1000 ? '50%' : 25,
+    right: deviceWidth > 1000 ? '50%' : 25,
     position: "absolute",
     zIndex: 50,
     ...Platform.select({
@@ -79,7 +79,11 @@ const notificationStyles = StyleSheet.create({
       android: { 
         top: 95
       },
-    })
+    }),
+    transform: [
+      { translateX: deviceWidth > 1000 ? '-50%' : 0 },
+      { translateY: deviceWidth > 1000 ? '-50%' : 0 }
+    ]
   },
   box: {
     left: 0,

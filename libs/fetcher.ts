@@ -16,8 +16,8 @@ export async function loginFetcher(url:string) {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        "Cookie": `MobileAuthorization=${accessToken}`
-        // "Authorization": accessToken,
+        // "Cookie": `MobileAuthorization=${accessToken}`,
+        "MobileAuthorization": accessToken,
       },
     }).then((response) => response.json())
   }

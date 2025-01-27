@@ -14,7 +14,7 @@ export default StyleSheet.create({
   container: {
     flex: 1,
     position: "relative",
-    backgroundColor: '#ffffff',
+    backgroundColor: '#ffffff'
   },
   headerBox: {
     height: 50,
@@ -29,7 +29,7 @@ export default StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     backgroundColor: '#ffffff',
-    position: "relative"
+    position: "relative",
   },
   contentBox: {
     paddingHorizontal: 25,
