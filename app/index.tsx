@@ -1,29 +1,25 @@
 import { useEffect, useState } from "react";
 import useSWR, { SWRConfig } from 'swr';
-import { View, Text, Alert } from "react-native";
+import { View, Text, Alert, Platform } from "react-native";
 
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import 'react-native-gesture-handler';
 
 import * as Font from "expo-font";
 
 import { StatusBar } from "expo-status-bar";
-import * as Linking from 'expo-linking';
 import { loginFetcher } from "../libs/fetcher";
 
 // import analytics from "@react-native-firebase/analytics";
 import * as SplashScreen from 'expo-splash-screen';
-import { deleteItem } from "../libs/SecureStore";
 import getAccessToken from "../libs/getAccessToken";
 import { BASE_URL } from "../libs/swr";
-import { colors } from "../styles/colors";
+import * as Notifications from 'expo-notifications';
 import structure from "../styles/structure";
 import Start from "./start";
 
 import { useSelector, useDispatch, Provider } from "react-redux";
 import { RootState } from "@/libs/reduces/reduces";
 import { store } from "@/libs/reduces/store";
-import { login, logout, setLoading } from "@/libs/reduces/app";
 import Loading from "@/components/loading";
 // import DeviceInfo from 'react-native-device-info';
 // import * as ScreenOrientation from 'expo-screen-orientation';
@@ -46,9 +42,17 @@ setCustomText(customTextProps);
 
 SplashScreen.preventAutoHideAsync();
 
-const Tab = createBottomTabNavigator<any>();
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 function AppComponent() {
+  SplashScreen.preventAutoHideAsync();
+
   const [isReady, setIsReady] = useState(false);
   const [isLogined, setIsLogined] = useState<null | boolean>(null);
   const [webReady, setWebReady] = useState(true);
@@ -114,6 +118,17 @@ function AppComponent() {
       // }
     }
   }, [fontsLoaded]);
+
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF231F7C',
+      });
+    }
+  }, []);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
