@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import useSWR, { SWRConfig } from 'swr';
 import { View, Text, Alert, Platform } from "react-native";
 
@@ -16,6 +16,8 @@ import { BASE_URL } from "../libs/swr";
 import * as Notifications from 'expo-notifications';
 import structure from "../styles/structure";
 import Start from "./start";
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 
 import { useSelector, useDispatch, Provider } from "react-redux";
 import { RootState } from "@/libs/reduces/reduces";
@@ -32,6 +34,8 @@ const reduxStore = store;
 import { setCustomText } from "react-native-global-props";
 import InAppNotification from "@/components/notification";
 import WebView from "react-native-webview";
+import { notification } from "@/libs/reduces/app";
+import { deleteItem, getValueFor } from "@/libs/SecureStore";
 
 const customTextProps = {
   style: {
@@ -51,6 +55,54 @@ Notifications.setNotificationHandler({
 });
 
 function AppComponent() {
+  async function setNotificationToken() {
+    if (Device.isDevice) {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== 'granted') {
+        dispatch(notification({type: "warning", text: "알림 권한을 허용하면 학교 소식을 가장 빠르게 접할 수 있습니다"}));
+      }
+      const projectId =
+        Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
+      if (!projectId) {
+        dispatch(notification({type: "error", text: "프로젝트 ID를 찾을 수 없습니다(오류)"}));
+      }
+      try {
+        const pushTokenString = (
+          await Notifications.getExpoPushTokenAsync({
+            projectId,
+          })
+        ).data;
+  
+        const accessToken = await getValueFor('accessToken');
+        await fetch(BASE_URL + '/api/user/notification', {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Cookie": `MobileAuthorization=${accessToken}`
+          },
+          body: JSON.stringify({
+            token: pushTokenString
+          })
+        }).then((response) => response.json())
+        .then((response) => {
+          if(response.success === true) {
+          } else {
+            dispatch(notification({type: "error", text: "알림 설정에 실패했습니다"}));
+          }
+        });
+      } catch (e: unknown) {
+        dispatch(notification({type: "error", text: `${e}`}));
+      }
+    } else {
+      dispatch(notification({type: "error", text: "실물 기기에서 테스트해주세요"}));
+    }
+  }
+
   SplashScreen.preventAutoHideAsync();
 
   const [isReady, setIsReady] = useState(false);
@@ -59,7 +111,18 @@ function AppComponent() {
 
   const getIsLogined = useSelector((state:RootState) => state.app.isLogined);
   useEffect(() => {
-    if(isLogined !== null) setIsLogined(getIsLogined);
+    async function checkLogined() {
+      if(isLogined !== null) {
+        if(getIsLogined === true) {
+          const accessToken = await getAccessToken();
+          if(accessToken === undefined) return;
+
+          setToken(accessToken);
+        }
+        setIsLogined(getIsLogined);
+      }
+    }
+    checkLogined();
   }, [getIsLogined]);
   useEffect(() => {
     if(isLogined !== null && isReady === true && isLogined === false) setTimeout(() => {
@@ -67,7 +130,9 @@ function AppComponent() {
     }, 100);
     if(isLogined !== null && isReady === true && isLogined === true && webReady === true) setTimeout(() => {
       SplashScreen.hideAsync();
-    }, 100);
+
+      setNotificationToken();
+    }, 1000);
   }, [isLogined, isReady, webReady]);
 
   const isLoading = useSelector((state:RootState) => state.app.isLoading);
@@ -76,15 +141,13 @@ function AppComponent() {
 
   const { data, error } = useSWR("/api/user", loginFetcher);
   useEffect(() => {
-    console.log(data, error)
+    // console.log(data, error)
     const roadUserInfo = async () => {
       // 로그인 디버깅용 코드
       // deleteItem("accessToken");
       // dispatch(setLoading(true));
 
       if(data.success !== true) {
-        // await deleteItem("accessToken");
-
         setIsLogined(false);
       } else {
         const accessToken = await getAccessToken();
@@ -130,11 +193,17 @@ function AppComponent() {
     }
   }, []);
 
+  let webviewRef = useRef<WebView | null>(null);
   return (
     <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
       { isReady === true && <View style={structure.container}>
         { isLogined !== null && <View style={structure.container}>
-          { isLogined === false ? <Start/> : <WebView onLoadEnd={() => setWebReady(true)} javaScriptEnabled mixedContentMode={"always"} useWebKit   webviewDebuggingEnabled={true}
+          { isLogined === false ? <Start/> : <WebView     
+          ref={webviewRef}
+          onContentProcessDidTerminate={() => {
+            webviewRef.current?.reload();
+          }} 
+          onLoad={() => setWebReady(true)} javaScriptEnabled
           injectedJavaScriptBeforeContentLoaded={`
             XMLHttpRequest.prototype.open = (function(open) {
               return function(method,url,async) {

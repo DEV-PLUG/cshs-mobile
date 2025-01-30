@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "ground-app",
+    "name": "그라운드",
     "slug": "ground-app",
     "version": "1.0.1",
     "orientation": "portrait",
@@ -28,15 +28,6 @@
     },
     "plugins": [
       "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
-        }
-      ],
       [
         "expo-screen-orientation",
         {

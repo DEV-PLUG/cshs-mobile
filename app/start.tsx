@@ -251,7 +251,9 @@ export function Verify({ navigation }:StackScreenProps<StartStackParamList, "Ver
 
 export function Notification({ navigation }:StackScreenProps<StartStackParamList, "Notification">) {
   const dispatch = useDispatch();
+  const [loading, setLoading] = useState(false);
   async function setNotificationToken() {
+    setLoading(true);
     if (Device.isDevice) {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
@@ -331,7 +333,7 @@ export function Notification({ navigation }:StackScreenProps<StartStackParamList
       <View style={{ width: deviceWidth > 1000 ? 500 : '100%', marginHorizontal: 'auto' }}>
         <View style={structure.btnBox}>
           <ButtonGradient/>
-          <Button btnText='다음' fn={() => setNotificationToken()} />
+          <Button disabled={loading} btnText='다음' fn={() => setNotificationToken()} />
         </View>
       </View>
     </SafeAreaView>
@@ -340,6 +342,15 @@ export function Notification({ navigation }:StackScreenProps<StartStackParamList
 
 export function Success({ navigation }:StackScreenProps<StartStackParamList, "Success">) {
   const dispatch = useDispatch();
+  const handleLogin = async () => {
+    const accessToken = await getValueFor('accessToken');
+    if (accessToken) {
+      dispatch(login());
+    } else {
+      dispatch(notification({ type: "error", text: "로그인 토큰을 찾을 수 없습니다" }));
+    }
+  };
+
   return (
     <SafeAreaView style={structure.safeViewContainer}>
       <View style={structure.container}>
@@ -365,7 +376,7 @@ export function Success({ navigation }:StackScreenProps<StartStackParamList, "Su
       <View style={{ width: deviceWidth > 1000 ? 500 : '100%', marginHorizontal: 'auto' }}>
         <View style={structure.btnBox}>
           <ButtonGradient/>
-          <Button btnText='완료하기' fn={() => dispatch(login())} />
+          <Button btnText='완료하기' fn={handleLogin} />
         </View>
       </View>
     </SafeAreaView>

@@ -6,6 +6,7 @@ interface Button {
   btnText: string;
   fn?(): void;
   keyboard?: boolean;
+  disabled?: boolean;
 }
 
 interface TextButton {
@@ -43,12 +44,13 @@ export function Button({
     btnText,
     fn,
     keyboard = false,
+    disabled = false,
   }:Button) {
 
   return (
     <Pressable
       onPress={() => {
-        fn && fn()
+        disabled === false && fn && fn()
       }}
       style={({ pressed }):any => [
         {
@@ -57,7 +59,7 @@ export function Button({
             : 1
         }
       ]}>
-      <View style={ keyboard === true ? {...buttonStyles.btn, borderRadius: 20} : {...buttonStyles.btn, borderRadius: 20} }>
+      <View style={ disabled === true ? {...buttonStyles.btn, opacity: 0.7} : keyboard === true ? {...buttonStyles.btn, borderRadius: 20} : {...buttonStyles.btn, borderRadius: 20} }>
         <Text style={buttonStyles.btnText}>{btnText}</Text>
       </View>
     </Pressable>
