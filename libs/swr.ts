@@ -1,5 +1,5 @@
 // export const BASE_URL = "http://13.124.243.149:5000";
-export const BASE_URL = "https://ground-demo.vercel.app";
+export const BASE_URL = "https://cshs.farmwork.kr";
 
 // http://13.124.243.149:5000/
 
